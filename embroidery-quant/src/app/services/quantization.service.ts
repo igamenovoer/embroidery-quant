@@ -1,7 +1,6 @@
 import { Injectable } from '@angular/core';
 import { QuantizationConfig, DitheringAlgorithm, Color } from '../models/processing.models';
-
-declare var RgbQuant: any;
+import * as RgbQuant from 'rgbquant';
 
 interface QuantizedResult {
   imageData: ImageData;
@@ -16,42 +15,63 @@ export class QuantizationService {
   private rgbQuant: any;
 
   constructor() {
-    this.initializeRgbQuant();
-  }
-
-  private initializeRgbQuant(): void {
-    if (typeof RgbQuant !== 'undefined') {
-      this.rgbQuant = RgbQuant;
-    } else {
-      console.warn('RgbQuant not available, quantization will be limited');
-    }
+    this.rgbQuant = RgbQuant;
   }
 
   async quantizeImage(imageData: ImageData, config: QuantizationConfig): Promise<QuantizedResult> {
     const startTime = performance.now();
     
     try {
-      if (!this.rgbQuant) {
-        throw new Error('RgbQuant library not available');
-      }
-
+      console.log('Starting quantization with', config.colorCount, 'colors');
+      
       const optimizedConfig = config.embroideryOptimized ? 
         this.optimizeForEmbroidery(config) : config;
 
-      const opts = this.buildRgbQuantOptions(optimizedConfig);
-      const quantizer = new this.rgbQuant(opts);
-
+      // Create canvas from ImageData
       const canvas = document.createElement('canvas');
       canvas.width = imageData.width;
       canvas.height = imageData.height;
       const ctx = canvas.getContext('2d')!;
       ctx.putImageData(imageData, 0, 0);
 
+      // Create RgbQuant instance with full options
+      const opts = {
+        colors: optimizedConfig.colorCount,
+        method: optimizedConfig.method,
+        boxSize: [64, 64] as [number, number],
+        boxPxls: 2,
+        initColors: 4096,
+        minHueCols: optimizedConfig.minHueColors,
+        dithKern: null, // No dithering for quantization step
+        dithDelta: 0,
+        dithSerp: false,
+        useCache: true,
+        cacheFreq: 10,
+        colorDist: 'euclidean'
+      };
+
+      const quantizer = new this.rgbQuant(opts);
+      
+      // Step 1: Sample the image to build color statistics
       quantizer.sample(canvas);
-      const palette = quantizer.palette();
-      const quantizedImageData = quantizer.reduce(canvas);
+      
+      // Step 2: Build the palette
+      const palette = quantizer.palette(true); // Get as RGB tuples
+      console.log('Generated palette with', palette.length, 'colors');
+      
+      // Step 3: Reduce the image using the built palette
+      const quantizedBuffer = quantizer.reduce(canvas, 1); // Get Uint8Array
+      
+      // Convert buffer back to ImageData
+      const quantizedImageData = new ImageData(
+        new Uint8ClampedArray(quantizedBuffer),
+        imageData.width,
+        imageData.height
+      );
 
       const processingTime = performance.now() - startTime;
+
+      console.log('Quantization completed in', processingTime, 'ms');
 
       return {
         imageData: quantizedImageData,
@@ -60,15 +80,12 @@ export class QuantizationService {
       };
     } catch (error) {
       console.error('Quantization failed:', error);
+      console.error('Error stack:', error);
       return this.fallbackQuantization(imageData, config);
     }
   }
 
   async generatePalette(imageData: ImageData, colorCount: number): Promise<Color[]> {
-    if (!this.rgbQuant) {
-      return this.fallbackPaletteGeneration(imageData, colorCount);
-    }
-
     const opts = {
       colors: colorCount,
       method: 2,
@@ -79,8 +96,6 @@ export class QuantizationService {
       dithKern: null,
       dithDelta: 0,
       dithSerp: false,
-      palette: [],
-      reIndex: false,
       useCache: true,
       cacheFreq: 10,
       colorDist: 'euclidean'
@@ -95,7 +110,7 @@ export class QuantizationService {
     ctx.putImageData(imageData, 0, 0);
 
     quantizer.sample(canvas);
-    const palette = quantizer.palette();
+    const palette = quantizer.palette(true); // Get as RGB tuples
     
     return this.convertPalette(palette);
   }
@@ -112,10 +127,6 @@ export class QuantizationService {
       dithSerp: false
     };
 
-    if (!this.rgbQuant) {
-      return this.fallbackApplyPalette(imageData, palette);
-    }
-
     const quantizer = new this.rgbQuant(opts);
     
     const canvas = document.createElement('canvas');
@@ -124,24 +135,39 @@ export class QuantizationService {
     const ctx = canvas.getContext('2d')!;
     ctx.putImageData(imageData, 0, 0);
 
-    return quantizer.reduce(canvas);
+    const resultBuffer = quantizer.reduce(canvas, 1); // Get Uint8Array
+    
+    return new ImageData(
+      new Uint8ClampedArray(resultBuffer),
+      imageData.width,
+      imageData.height
+    );
   }
 
   async applyDithering(imageData: ImageData, algorithm: DitheringAlgorithm, palette: Color[]): Promise<ImageData> {
+    if (algorithm === DitheringAlgorithm.None) {
+      return this.applyCustomPalette(imageData, palette);
+    }
+
     const rgbPalette = palette.map(color => [color.r, color.g, color.b]);
     
     const opts = {
       colors: palette.length,
       method: 2,
+      boxSize: [64, 64] as [number, number],
+      boxPxls: 2,
+      initColors: 4096,
+      minHueCols: 0,
       palette: rgbPalette,
       dithKern: this.getDitheringKernel(algorithm),
       dithDelta: 0.05,
-      dithSerp: true
+      dithSerp: true,
+      useCache: true,
+      cacheFreq: 10,
+      colorDist: 'euclidean'
     };
 
-    if (!this.rgbQuant) {
-      return this.fallbackDithering(imageData, algorithm, palette);
-    }
+    console.log('Applying dithering with algorithm:', algorithm, 'and options:', opts);
 
     const quantizer = new this.rgbQuant(opts);
     
@@ -151,7 +177,16 @@ export class QuantizationService {
     const ctx = canvas.getContext('2d')!;
     ctx.putImageData(imageData, 0, 0);
 
-    return quantizer.reduce(canvas);
+    // For dithering with preset palette, we still need to sample first
+    // This is important for RgbQuant to work correctly
+    quantizer.sample(canvas);
+    const resultBuffer = quantizer.reduce(canvas, 1); // Get Uint8Array
+    
+    return new ImageData(
+      new Uint8ClampedArray(resultBuffer),
+      imageData.width,
+      imageData.height
+    );
   }
 
   getEmbroideryPresets(): QuantizationConfig[] {
@@ -227,8 +262,8 @@ export class QuantizationService {
       [DitheringAlgorithm.Atkinson]: 'Atkinson',
       [DitheringAlgorithm.Burkes]: 'Burkes',
       [DitheringAlgorithm.Stucki]: 'Stucki',
-      [DitheringAlgorithm.Sierra2]: 'Sierra2',
-      [DitheringAlgorithm.Sierra3]: 'Sierra3',
+      [DitheringAlgorithm.Sierra2]: 'TwoSierra',  // Maps to TwoSierra in RgbQuant
+      [DitheringAlgorithm.Sierra3]: 'Sierra',     // Maps to Sierra in RgbQuant  
       [DitheringAlgorithm.SierraLite]: 'SierraLite'
     };
 

@@ -1,9 +1,13 @@
 import { Component, EventEmitter, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+
+// Angular Material Components
 import { MatCardModule } from '@angular/material/card';
-import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatDividerModule } from '@angular/material/divider';
+
 import { CanvasService } from '../../services/canvas.service';
 import { ValidationResult } from '../../models/processing.models';
 
@@ -12,9 +16,10 @@ import { ValidationResult } from '../../models/processing.models';
   imports: [
     CommonModule,
     MatCardModule,
-    MatIconModule,
     MatButtonModule,
-    MatProgressSpinnerModule
+    MatIconModule,
+    MatProgressSpinnerModule,
+    MatDividerModule
   ],
   templateUrl: './file-upload.component.html',
   styleUrls: ['./file-upload.component.scss']

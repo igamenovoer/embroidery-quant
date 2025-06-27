@@ -1,69 +1,88 @@
-<mat-card 
-  class="upload-card"
-  [class.drag-over]="isDragOver"
-  [class.invalid]="!isFileValid"
-  (dragover)="onDragOver($event)"
-  (dragleave)="onDragLeave($event)"
-  (drop)="onDrop($event)">
+<mat-card class="upload-card">
+  <mat-card-header>
+    <mat-card-title>
+      <mat-icon>cloud_upload</mat-icon>
+      Upload Image
+    </mat-card-title>
+    <mat-card-subtitle>
+      Select an image to transform into an embroidery pattern
+    </mat-card-subtitle>
+  </mat-card-header>
   
-  <mat-card-content class="upload-content">
-    <div class="upload-area" *ngIf="!isProcessing">
-      <mat-icon class="upload-icon" [class.error]="!isFileValid">
-        {{ isFileValid ? 'cloud_upload' : 'error' }}
-      </mat-icon>
+  <mat-card-content>
+    <div class="upload-container" 
+         [class.drag-over]="isDragOver"
+         [class.invalid]="!isFileValid"
+         (dragover)="onDragOver($event)"
+         (dragleave)="onDragLeave($event)"
+         (drop)="onDrop($event)">
       
-      <h3 class="upload-title" [class.error]="!isFileValid">
-        {{ isFileValid ? 'Drop your image here' : 'Invalid file' }}
-      </h3>
-      
-      <p class="upload-subtitle" *ngIf="isFileValid">
-        or click to select a file
-      </p>
-      
-      <p class="error-message" *ngIf="!isFileValid">
-        {{ validationMessage }}
-      </p>
-      
-      <div class="file-info" *ngIf="isFileValid">
-        <p class="supported-formats">
-          <strong>Supported formats:</strong> JPG, PNG, WebP
-        </p>
-        <p class="max-size">
-          <strong>Maximum size:</strong> {{ formatFileSize(maxFileSize) }}
-        </p>
+      <div class="upload-area" *ngIf="!isProcessing">
+        <div class="upload-icon">
+          <mat-icon [class.error-icon]="!isFileValid">
+            {{ isFileValid ? 'add_photo_alternate' : 'error_outline' }}
+          </mat-icon>
+        </div>
+        
+        <div class="upload-text">
+          <h3 class="upload-title" [class.error-text]="!isFileValid">
+            {{ isDragOver ? 'Drop your image here' : 'Drag & drop or browse for an image' }}
+          </h3>
+          
+          <p class="upload-subtitle" *ngIf="isFileValid">
+            Supported formats: JPEG, PNG, WebP (max {{formatFileSize(maxFileSize)}})
+          </p>
+          
+          <div class="error-message" *ngIf="!isFileValid">
+            <mat-icon>error</mat-icon>
+            <span>{{validationMessage}}</span>
+          </div>
+        </div>
+        
+        <div class="upload-actions">
+          <input type="file" 
+                 #fileInput
+                 class="file-input"
+                 [accept]="getAcceptedTypes()"
+                 (change)="onFileInputChange($event)">
+          
+          <button 
+            mat-raised-button 
+            color="primary"
+            (click)="fileInput.click()"
+            [disabled]="isProcessing">
+            <mat-icon>folder_open</mat-icon>
+            Browse Files
+          </button>
+          
+          <button 
+            *ngIf="!isFileValid"
+            mat-stroked-button
+            color="warn"
+            (click)="clearValidation()">
+            <mat-icon>refresh</mat-icon>
+            Try Again
+          </button>
+        </div>
       </div>
       
-      <button 
-        mat-raised-button 
-        color="primary" 
-        class="select-button"
-        *ngIf="isFileValid"
-        (click)="fileInput.click()">
-        <mat-icon>folder_open</mat-icon>
-        Select File
-      </button>
-      
-      <button 
-        mat-raised-button 
-        color="warn" 
-        class="retry-button"
-        *ngIf="!isFileValid"
-        (click)="clearValidation()">
-        <mat-icon>refresh</mat-icon>
-        Try Again
-      </button>
+      <div class="processing-area" *ngIf="isProcessing">
+        <mat-spinner diameter="50"></mat-spinner>
+        <p class="processing-text">Loading your image...</p>
+      </div>
     </div>
     
-    <div class="processing-area" *ngIf="isProcessing">
-      <mat-spinner diameter="60"></mat-spinner>
-      <p class="processing-text">Processing your image...</p>
+    <mat-divider class="info-divider"></mat-divider>
+    
+    <div class="upload-info">
+      <div class="info-item">
+        <mat-icon>info</mat-icon>
+        <span>Best results with high-contrast images</span>
+      </div>
+      <div class="info-item">
+        <mat-icon>palette</mat-icon>
+        <span>Images will be optimized for embroidery patterns</span>
+      </div>
     </div>
   </mat-card-content>
 </mat-card>
-
-<input 
-  #fileInput
-  type="file"
-  class="hidden-input"
-  [accept]="getAcceptedTypes()"
-  (change)="onFileInputChange($event)">
