@@ -15,6 +15,9 @@ This project develops an web-based image quantization app, which quantizes an im
 - the user uploads an image
 - the user can set the max number of colors to use
 - if the underlying library provides image quality options, also let user adjusts those
+- allow the user the filter the image using bilateral filtering
+- - allow the user to adjust the parameters
+- - allow the user to see the filtered image before quantization
 
 ### Output
 - the quantized image, shown side-by-side with the input
@@ -33,3 +36,4 @@ This project develops an web-based image quantization app, which quantizes an im
 
 ## Libraries
 - prefer to use libraries in survey/production-ready-solution.md
+- use latest Angular framework
