@@ -17,9 +17,9 @@ declare module 'rgbquant' {
   }
 
   interface RgbQuantInstance {
-    sample(canvas: HTMLCanvasElement | HTMLImageElement): void;
+    sample(input: HTMLCanvasElement | HTMLImageElement | ImageData): void;
     palette(tuples?: boolean): number[][] | Uint8Array;
-    reduce(canvas: HTMLCanvasElement | HTMLImageElement, retType?: number): Uint8Array | number[] | ImageData;
+    reduce(input: HTMLCanvasElement | HTMLImageElement | ImageData, retType?: number): Uint8Array | number[] | ImageData;
     buildPal(): void;
   }
 

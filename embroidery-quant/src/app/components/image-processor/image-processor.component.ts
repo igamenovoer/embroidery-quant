@@ -61,6 +61,7 @@ export class ImageProcessorComponent implements OnInit, OnChanges, OnDestroy {
   filteredCanvas!: HTMLCanvasElement;
   quantizedCanvas!: HTMLCanvasElement;
   finalCanvas!: HTMLCanvasElement;
+  directQuantizedCanvas!: HTMLCanvasElement;
 
   // Processing state
   isProcessing = false;
@@ -92,10 +93,12 @@ export class ImageProcessorComponent implements OnInit, OnChanges, OnDestroy {
   ];
 
   // Results
+  originalImageElement: HTMLImageElement | null = null;
   originalImageData: ImageData | null = null;
   filteredImageData: ImageData | null = null;
   quantizedImageData: ImageData | null = null;
   finalImageData: ImageData | null = null;
+  directQuantizedImageData: ImageData | null = null;
   palette: Color[] = [];
 
   constructor(
@@ -120,6 +123,7 @@ export class ImageProcessorComponent implements OnInit, OnChanges, OnDestroy {
     this.filteredCanvas = document.createElement('canvas');
     this.quantizedCanvas = document.createElement('canvas');
     this.finalCanvas = document.createElement('canvas');
+    this.directQuantizedCanvas = document.createElement('canvas');
   }
 
   private async loadImage(): Promise<void> {
@@ -129,16 +133,16 @@ export class ImageProcessorComponent implements OnInit, OnChanges, OnDestroy {
       this.isProcessing = true;
       this.processingStage = 'Loading image...';
 
-      // Load image element
-      const imageElement = await this.canvasService.loadImageFromFile(this.imageFile);
+      // Load image element and store it
+      this.originalImageElement = await this.canvasService.loadImageFromFile(this.imageFile);
       
       // Convert to canvas and then to ImageData
-      const canvas = await this.canvasService.imageToCanvas(imageElement);
+      const canvas = await this.canvasService.imageToCanvas(this.originalImageElement);
       this.originalImageData = this.canvasService.canvasToImageData(canvas);
 
       // Set canvas dimensions
       const { width, height } = this.originalImageData;
-      [this.originalCanvas, this.filteredCanvas, this.quantizedCanvas, this.finalCanvas]
+      [this.originalCanvas, this.filteredCanvas, this.quantizedCanvas, this.finalCanvas, this.directQuantizedCanvas]
         .forEach(canvasElement => {
           canvasElement.width = width;
           canvasElement.height = height;
@@ -148,6 +152,9 @@ export class ImageProcessorComponent implements OnInit, OnChanges, OnDestroy {
       const originalCtx = this.originalCanvas.getContext('2d')!;
       originalCtx.putImageData(this.originalImageData, 0, 0);
 
+      // Test direct quantization first (for debugging)
+      await this.testDirectQuantization();
+
       // Process the image pipeline
       await this.processImagePipeline();
 
@@ -156,6 +163,33 @@ export class ImageProcessorComponent implements OnInit, OnChanges, OnDestroy {
     } finally {
       this.isProcessing = false;
       this.processingStage = '';
+    }
+  }
+
+  async testDirectQuantization(): Promise<void> {
+    if (!this.originalImageElement) return;
+
+    try {
+      console.log('=== TESTING DIRECT QUANTIZATION ===');
+      
+      // Test direct quantization using HTMLImageElement like working examples
+      const directResult = await this.quantizationService.quantizeImageDirectlyFromElement(
+        this.originalImageElement, 
+        this.quantizationConfig.colorCount
+      );
+      
+      this.directQuantizedImageData = directResult.imageData;
+      
+      // Draw to canvas
+      const directCtx = this.directQuantizedCanvas.getContext('2d')!;
+      directCtx.putImageData(this.directQuantizedImageData, 0, 0);
+      
+      console.log('=== DIRECT QUANTIZATION COMPLETED ===');
+      console.log('Direct quantization result dimensions:', directResult.imageData.width, 'x', directResult.imageData.height);
+      console.log('Direct quantization palette length:', directResult.palette.length);
+      
+    } catch (error) {
+      console.error('=== DIRECT QUANTIZATION FAILED ===', error);
     }
   }
 
@@ -177,20 +211,25 @@ export class ImageProcessorComponent implements OnInit, OnChanges, OnDestroy {
       const filteredCtx = this.filteredCanvas.getContext('2d')!;
       filteredCtx.putImageData(this.filteredImageData, 0, 0);
 
-      // Stage 2: Quantize image (without dithering)
-      this.processingStage = 'Quantizing colors...';
-      const quantResult = await this.quantizationService.quantizeImage(
-        this.filteredImageData,
+      // Stage 2: Build palette from ORIGINAL image (not filtered!)
+      this.processingStage = 'Building color palette from original image...';
+      this.palette = await this.quantizationService.buildPaletteFromReference(
+        this.originalImageData,
         { ...this.quantizationConfig, ditheringAlgorithm: DitheringAlgorithm.None }
+      );
+
+      // Stage 3: Quantize FILTERED image using the same palette
+      this.processingStage = 'Quantizing filtered image...';
+      const quantResult = await this.quantizationService.quantizeWithExistingPalette(
+        this.filteredImageData
       );
       
       this.quantizedImageData = quantResult.imageData;
-      this.palette = quantResult.palette;
       
       const quantizedCtx = this.quantizedCanvas.getContext('2d')!;
       quantizedCtx.putImageData(this.quantizedImageData, 0, 0);
 
-      // Stage 3: Apply dithering if selected
+      // Stage 4: Apply dithering if selected
       this.processingStage = 'Applying dithering...';
       if (this.quantizationConfig.ditheringAlgorithm !== DitheringAlgorithm.None) {
         this.finalImageData = await this.quantizationService.applyDithering(

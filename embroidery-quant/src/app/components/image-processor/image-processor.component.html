@@ -209,6 +209,19 @@
           </ng-template>
         </mat-tab>
 
+        <!-- Direct Quantized (DEBUG) -->
+        <mat-tab label="Direct Quantized (DEBUG)">
+          <ng-template matTabContent>
+            <div class="stage-container">
+              <h3 class="stage-title">Direct Quantized (Debug Test)</h3>
+              <img [src]="getCanvasDataUrl(directQuantizedCanvas)" alt="Direct Quantized" class="result-image">
+              <p class="stage-description text-muted">
+                Simple direct quantization test - {{quantizationConfig.colorCount}} colors
+              </p>
+            </div>
+          </ng-template>
+        </mat-tab>
+
         <!-- Final Result -->
         <mat-tab label="Final Result">
           <ng-template matTabContent>

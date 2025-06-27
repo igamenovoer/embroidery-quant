@@ -1146,8 +1146,7 @@
         class ImageQuantizationApp {
             constructor() {
                 this.currentImage = null;
-                this.quantizerOriginal = null;
-                this.quantizerFiltered = null;
+                this.quantizer = null;
                 this.quantizedOriginalImageData = null;
                 this.quantizedFilteredImageData = null;
                 
@@ -1326,37 +1325,35 @@
                                     dithSerp: false
                                 };
 
-                                this.quantizerOriginal = new RgbQuant(opts);
-                                this.quantizerFiltered = new RgbQuant(opts);
+                                // Use single quantizer instance to ensure identical processing
+                                this.quantizer = new RgbQuant(opts);
 
-                                // Sample both images to build consistent palettes
-                                this.quantizerOriginal.sample(originalImageData);
-                                this.quantizerFiltered.sample(filteredImageData);
+                                // Sample only the original image to build the palette
+                                this.quantizer.sample(originalImageData);
 
                                 this.showStatus('Step 3/4: Quantizing original image...', 'processing');
                                 
                                 // Step 3: Quantize the original image
                                 setTimeout(() => {
                                     try {
-                                        // Quantize original image
-                                        const originalPaletteData = this.quantizerOriginal.palette();
-                                        const quantizedOriginalData = this.quantizerOriginal.reduce(originalImageData);
+                                        // Build palette and quantize original image
+                                        const paletteData = this.quantizer.palette();
+                                        const quantizedOriginalData = this.quantizer.reduce(originalImageData);
 
                                         this.showStatus('Step 4/4: Quantizing filtered image...', 'processing');
                                         
-                                        // Step 4: Quantize the filtered image
+                                        // Step 4: Quantize the filtered image using the SAME palette
                                         setTimeout(() => {
                                             try {
-                                                // Quantize filtered image
-                                                const filteredPaletteData = this.quantizerFiltered.palette();
-                                                const quantizedFilteredData = this.quantizerFiltered.reduce(filteredImageData);
+                                                // Quantize filtered image using the same palette/quantizer
+                                                const quantizedFilteredData = this.quantizer.reduce(filteredImageData);
 
                                                 // Display results
                                                 this.displayQuantizedImage(quantizedOriginalData, originalImageData.width, originalImageData.height, 'original');
                                                 this.displayQuantizedImage(quantizedFilteredData, filteredImageData.width, filteredImageData.height, 'filtered');
-                                                this.displayPalette(originalPaletteData);
+                                                this.displayPalette(paletteData);
 
-                                                this.showStatus(`Processing complete! Quantized both original and filtered images to ${opts.colors} colors.`, 'success');
+                                                this.showStatus(`Processing complete! Quantized both original and filtered images to ${opts.colors} colors using the same palette.`, 'success');
                                                 
                                                 // Enable download buttons
                                                 this.downloadOriginalPng.disabled = false;

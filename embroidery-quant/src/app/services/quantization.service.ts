@@ -7,6 +7,12 @@ interface QuantizedResult {
   processingTime: number;
 }
 
+interface QuantizerInstance {
+  quantizer: any;
+  config: QuantizationConfig;
+  palette: Color[];
+}
+
 declare global {
   interface Window {
     RgbQuant: any;
@@ -17,6 +23,8 @@ declare global {
   providedIn: 'root'
 })
 export class QuantizationService {
+  private currentQuantizer: QuantizerInstance | null = null;
+
   constructor() {}
 
   private getRgbQuant(): any {
@@ -26,21 +34,18 @@ export class QuantizationService {
     throw new Error('RgbQuant library not loaded');
   }
 
-  async quantizeImage(imageData: ImageData, config: QuantizationConfig): Promise<QuantizedResult> {
+  /**
+   * Build palette from reference image (usually the original image)
+   * This creates a quantizer instance that can be reused for multiple images
+   */
+  async buildPaletteFromReference(referenceImageData: ImageData, config: QuantizationConfig): Promise<Color[]> {
     const startTime = performance.now();
     
     try {
-      console.log('Starting quantization with', config.colorCount, 'colors');
+      console.log('Building palette from reference image with', config.colorCount, 'colors');
       
       const optimizedConfig = config.embroideryOptimized ? 
         this.optimizeForEmbroidery(config) : config;
-
-      // Create canvas from ImageData
-      const canvas = document.createElement('canvas');
-      canvas.width = imageData.width;
-      canvas.height = imageData.height;
-      const ctx = canvas.getContext('2d')!;
-      ctx.putImageData(imageData, 0, 0);
 
       // Create RgbQuant instance with proper options
       const RgbQuant = this.getRgbQuant();
@@ -61,21 +66,56 @@ export class QuantizationService {
 
       const quantizer = new RgbQuant(opts);
       
-      // Step 1: Sample the image to build color statistics
-      quantizer.sample(canvas);
+      // Sample ONLY the reference image to build color statistics
+      // Pass ImageData directly to RgbQuant (like in working demo)
+      quantizer.sample(referenceImageData);
       
-      // Step 2: Get the palette
+      // Get the palette (this builds it internally)
       const palette = quantizer.palette(true); // Get as RGB tuples
       console.log('Generated palette with', palette.length, 'colors');
       
-      // Step 3: Reduce the image using the built palette
-      const quantizedBuffer = quantizer.reduce(canvas, 1); // Get Uint8Array
+      const convertedPalette = this.convertPalette(palette);
+      
+      // Store the quantizer instance for reuse
+      this.currentQuantizer = {
+        quantizer,
+        config: optimizedConfig,
+        palette: convertedPalette
+      };
+
+      const processingTime = performance.now() - startTime;
+      console.log('Palette building completed in', processingTime, 'ms');
+
+      return convertedPalette;
+    } catch (error) {
+      console.error('Palette building failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Quantize an image using existing palette (must call buildPaletteFromReference first)
+   * This allows multiple images to be quantized with the same palette for consistency
+   */
+  async quantizeWithExistingPalette(imageData: ImageData): Promise<QuantizedResult> {
+    const startTime = performance.now();
+    
+    try {
+      if (!this.currentQuantizer) {
+        throw new Error('No palette available. Call buildPaletteFromReference() first.');
+      }
+
+      console.log('Quantizing image with existing palette of', this.currentQuantizer.palette.length, 'colors');
+
+      // Use the existing quantizer (which already has the palette built)
+      // Pass ImageData directly to RgbQuant (like in working demo)
+      const quantizedBuffer = this.currentQuantizer.quantizer.reduce(imageData, 1); // Get Uint8Array
       
       // Convert buffer back to ImageData
       const quantizedImageData = new ImageData(
         new Uint8ClampedArray(quantizedBuffer),
-        canvas.width,
-        canvas.height
+        imageData.width,
+        imageData.height
       );
 
       const processingTime = performance.now() - startTime;
@@ -84,45 +124,37 @@ export class QuantizationService {
 
       return {
         imageData: quantizedImageData,
-        palette: this.convertPalette(palette),
+        palette: this.currentQuantizer.palette,
         processingTime
       };
     } catch (error) {
       console.error('Quantization failed:', error);
       console.error('Error stack:', error);
-      return this.fallbackQuantization(imageData, config);
+      throw error;
     }
   }
 
+  /**
+   * Legacy method - builds palette and quantizes in one step
+   * Use buildPaletteFromReference + quantizeWithExistingPalette for better control
+   */
+  async quantizeImage(imageData: ImageData, config: QuantizationConfig): Promise<QuantizedResult> {
+    // Build palette from this image
+    await this.buildPaletteFromReference(imageData, config);
+    
+    // Quantize using the built palette
+    return this.quantizeWithExistingPalette(imageData);
+  }
+
   async generatePalette(imageData: ImageData, colorCount: number): Promise<Color[]> {
-    const RgbQuant = this.getRgbQuant();
-    const opts = {
-      colors: colorCount,
+    const config = new QuantizationConfig({
+      colorCount,
       method: 2,
-      boxSize: [64, 64],
-      boxPxls: 2,
-      initColors: 4096,
-      minHueCols: 0,
-      dithKern: null,
-      dithDelta: 0,
-      dithSerp: false,
-      useCache: true,
-      cacheFreq: 10,
-      colorDist: 'euclidean'
-    };
-
-    const quantizer = new RgbQuant(opts);
+      ditheringAlgorithm: DitheringAlgorithm.None,
+      embroideryOptimized: false
+    });
     
-    const canvas = document.createElement('canvas');
-    canvas.width = imageData.width;
-    canvas.height = imageData.height;
-    const ctx = canvas.getContext('2d')!;
-    ctx.putImageData(imageData, 0, 0);
-
-    quantizer.sample(canvas);
-    const palette = quantizer.palette(true); // Get as RGB tuples
-    
-    return this.convertPalette(palette);
+    return this.buildPaletteFromReference(imageData, config);
   }
 
   async applyCustomPalette(imageData: ImageData, palette: Color[]): Promise<ImageData> {
@@ -140,19 +172,116 @@ export class QuantizationService {
 
     const quantizer = new RgbQuant(opts);
     
-    const canvas = document.createElement('canvas');
-    canvas.width = imageData.width;
-    canvas.height = imageData.height;
-    const ctx = canvas.getContext('2d')!;
-    ctx.putImageData(imageData, 0, 0);
-
-    const resultBuffer = quantizer.reduce(canvas, 1); // Get Uint8Array
+    // Pass ImageData directly to RgbQuant
+    const resultBuffer = quantizer.reduce(imageData, 1); // Get Uint8Array
     
     return new ImageData(
       new Uint8ClampedArray(resultBuffer),
-      canvas.width,
-      canvas.height
+      imageData.width,
+      imageData.height
     );
+  }
+
+  /**
+   * Get the current palette if available
+   */
+  getCurrentPalette(): Color[] | null {
+    return this.currentQuantizer?.palette || null;
+  }
+
+  /**
+   * Check if a quantizer with palette is available
+   */
+  hasPalette(): boolean {
+    return this.currentQuantizer !== null;
+  }
+
+  /**
+   * Clear the current quantizer instance
+   */
+  clearPalette(): void {
+    this.currentQuantizer = null;
+  }
+
+  /**
+   * Simple direct quantization for debugging - mimics working HTML demo exactly
+   * Uses HTMLImageElement like the working examples do
+   */
+  async quantizeImageDirectlyFromElement(imageElement: HTMLImageElement, colorCount: number = 16): Promise<QuantizedResult> {
+    const startTime = performance.now();
+    
+    try {
+      console.log('=== TESTING DIRECT QUANTIZATION FROM IMAGE ELEMENT ===');
+      console.log('Direct quantization with', colorCount, 'colors');
+      console.log('Image element dimensions:', imageElement.width, 'x', imageElement.height);
+      console.log('Image element src length:', imageElement.src.length);
+
+      // Create RgbQuant with minimal options (exactly like working demo)
+      const RgbQuant = this.getRgbQuant();
+      const opts = {
+        colors: colorCount
+      };
+
+      console.log('Creating RgbQuant with options:', opts);
+      const quantizer = new RgbQuant(opts);
+      
+      console.log('Sampling image element directly...');
+      // Pass HTMLImageElement directly like working examples
+      quantizer.sample(imageElement);
+      
+      console.log('Getting palette...');
+      const paletteData = quantizer.palette();
+      console.log('Palette generated:', paletteData);
+      
+      // Create canvas to get ImageData for processing
+      console.log('Creating canvas for image data...');
+      const canvas = document.createElement('canvas');
+      canvas.width = imageElement.width;
+      canvas.height = imageElement.height;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(imageElement, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      
+      console.log('Reducing image...');
+      const quantizedBuffer = quantizer.reduce(imageElement);
+      console.log('Quantized buffer type:', typeof quantizedBuffer);
+      console.log('Quantized buffer length:', quantizedBuffer.length);
+      
+      // Convert buffer back to ImageData
+      const quantizedImageData = new ImageData(
+        new Uint8ClampedArray(quantizedBuffer),
+        imageElement.width,
+        imageElement.height
+      );
+
+      const processingTime = performance.now() - startTime;
+      console.log('Direct quantization completed in', processingTime, 'ms');
+
+      // Convert palette for return (handle different palette formats)
+      let palette: Color[] = [];
+      
+      if (Array.isArray(paletteData) && paletteData[0] && Array.isArray(paletteData[0])) {
+        // RGB tuples format [[r,g,b], [r,g,b], ...]
+        palette = paletteData.map((rgb: number[]) => new Color(rgb[0], rgb[1], rgb[2]));
+      } else if (paletteData instanceof Uint8Array) {
+        // Uint8Array format [r,g,b,a,r,g,b,a,...]
+        for (let i = 0; i < paletteData.length; i += 4) {
+          palette.push(new Color(paletteData[i], paletteData[i + 1], paletteData[i + 2]));
+        }
+      }
+
+      console.log('Final palette length:', palette.length);
+
+      return {
+        imageData: quantizedImageData,
+        palette,
+        processingTime
+      };
+    } catch (error) {
+      console.error('=== DIRECT QUANTIZATION FROM ELEMENT FAILED ===', error);
+      console.error('Error stack:', (error as Error).stack);
+      throw error;
+    }
   }
 
   async applyDithering(imageData: ImageData, algorithm: DitheringAlgorithm, palette: Color[]): Promise<ImageData> {
@@ -183,21 +312,15 @@ export class QuantizationService {
     const RgbQuant = this.getRgbQuant();
     const quantizer = new RgbQuant(opts);
     
-    const canvas = document.createElement('canvas');
-    canvas.width = imageData.width;
-    canvas.height = imageData.height;
-    const ctx = canvas.getContext('2d')!;
-    ctx.putImageData(imageData, 0, 0);
-
     // For dithering with preset palette, we still need to sample first
     // This is important for RgbQuant to work correctly
-    quantizer.sample(canvas);
-    const resultBuffer = quantizer.reduce(canvas, 1); // Get Uint8Array
+    quantizer.sample(imageData);
+    const resultBuffer = quantizer.reduce(imageData, 1); // Get Uint8Array
     
     return new ImageData(
       new Uint8ClampedArray(resultBuffer),
-      canvas.width,
-      canvas.height
+      imageData.width,
+      imageData.height
     );
   }
 
