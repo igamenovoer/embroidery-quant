@@ -4,9 +4,8 @@
 This project develops an web-based image quantization app, which quantizes an image with given number of colors, and aims to:
 - preserve visual fidelity
 - the output should be easily used as embroidery pattern
-- the whole thing runs in browser, can make use of GPU (via webGL or webGPU) and web-assembly, assuming the user is using the latest Chrome browser in PC
+- the whole thing runs in browser, should work in ios,android,mac,and windows PC, assuming the user uses either the default browser on that platform, or using latest Chrome.
 - can make use of deep learning model running inside browser
-- consider ios/android compatibility if not hurting the features, otherwise just make it for PC.
 - provides a download option, to allow the processed image to be downloaded to local disk
 - the whole app will be hosted in github pages
 - prefer to use the cutting-edge latest algorithms
@@ -35,5 +34,5 @@ This project develops an web-based image quantization app, which quantizes an im
 - - example in reference/bilateral-filter
 
 ## Libraries
-- prefer to use libraries in survey/production-ready-solution.md
+- prefer to use libraries in context/survey/production-ready-solution.md
 - use latest Angular framework
