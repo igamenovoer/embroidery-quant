@@ -1,0 +1,69 @@
+<mat-card 
+  class="upload-card"
+  [class.drag-over]="isDragOver"
+  [class.invalid]="!isFileValid"
+  (dragover)="onDragOver($event)"
+  (dragleave)="onDragLeave($event)"
+  (drop)="onDrop($event)">
+  
+  <mat-card-content class="upload-content">
+    <div class="upload-area" *ngIf="!isProcessing">
+      <mat-icon class="upload-icon" [class.error]="!isFileValid">
+        {{ isFileValid ? 'cloud_upload' : 'error' }}
+      </mat-icon>
+      
+      <h3 class="upload-title" [class.error]="!isFileValid">
+        {{ isFileValid ? 'Drop your image here' : 'Invalid file' }}
+      </h3>
+      
+      <p class="upload-subtitle" *ngIf="isFileValid">
+        or click to select a file
+      </p>
+      
+      <p class="error-message" *ngIf="!isFileValid">
+        {{ validationMessage }}
+      </p>
+      
+      <div class="file-info" *ngIf="isFileValid">
+        <p class="supported-formats">
+          <strong>Supported formats:</strong> JPG, PNG, WebP
+        </p>
+        <p class="max-size">
+          <strong>Maximum size:</strong> {{ formatFileSize(maxFileSize) }}
+        </p>
+      </div>
+      
+      <button 
+        mat-raised-button 
+        color="primary" 
+        class="select-button"
+        *ngIf="isFileValid"
+        (click)="fileInput.click()">
+        <mat-icon>folder_open</mat-icon>
+        Select File
+      </button>
+      
+      <button 
+        mat-raised-button 
+        color="warn" 
+        class="retry-button"
+        *ngIf="!isFileValid"
+        (click)="clearValidation()">
+        <mat-icon>refresh</mat-icon>
+        Try Again
+      </button>
+    </div>
+    
+    <div class="processing-area" *ngIf="isProcessing">
+      <mat-spinner diameter="60"></mat-spinner>
+      <p class="processing-text">Processing your image...</p>
+    </div>
+  </mat-card-content>
+</mat-card>
+
+<input 
+  #fileInput
+  type="file"
+  class="hidden-input"
+  [accept]="getAcceptedTypes()"
+  (change)="onFileInputChange($event)">
