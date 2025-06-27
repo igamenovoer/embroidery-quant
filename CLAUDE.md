@@ -8,9 +8,36 @@ EmbroideryQuant is a browser-based image quantization application for creating e
 
 **Technology Stack**: Angular 20+ with TypeScript, Angular Material UI, RgbQuant.js for quantization, custom bilateral filter, Web Workers, WebGPU/WebGL acceleration
 
+## Project Structure
+
+The project is currently in a documentation and planning phase. The main application has not been implemented yet, but the directory is organized as follows:
+
+```
+/EmbroideryQuant/
+├── CLAUDE.md                    # This guidance file
+├── README.md                    # Project overview and documentation
+├── context/                     # Development context and documentation
+│   ├── api-docs/               # API documentation
+│   ├── design/                 # Design documents and project planning
+│   │   └── project-idea.md     # Core project requirements
+│   ├── hints/                  # Development hints and problem solutions
+│   ├── memory/                 # AI assistant memory and understanding
+│   │   └── project-understanding.md  # Project comprehension notes
+│   ├── survey/                 # Technology surveys and solution approaches
+│   │   ├── cutting-edge-solution.md    # Advanced tech approach
+│   │   └── production-ready-solution.md # Stable tech approach
+│   └── tasks/                  # Development task guides
+├── reference/                  # Reference implementations and libraries
+│   ├── RgbQuant.js/           # RgbQuant.js library with demos
+│   ├── bilateral-filter/       # Bilateral filter reference
+│   ├── image-quant-minimal.html    # Minimal quantization demo
+│   └── image-quant-with-filter.html # Enhanced demo with filtering
+└── tests/                      # Empty test directory
+```
+
 ## Development Commands
 
-Since the main application files have been deleted from the current branch, the project appears to be in a restructuring phase. Based on the README.md, these are the expected development commands:
+The Angular application has been created in `/embroidery-quant/`. Standard Angular CLI commands:
 
 ```bash
 # Install dependencies
@@ -68,17 +95,39 @@ Image Upload → Canvas Rendering → Bilateral Filter → Quantization → Disp
 
 ## Context and Documentation
 
-The `/context/` directory contains valuable development guidance:
+The `/context/` directory contains comprehensive development guidance:
 
+- **`/context/design/project-idea.md`**: Core project requirements and specifications
+- **`/context/memory/project-understanding.md`**: AI assistant's understanding of the project
 - **`/context/hints/`**: Solutions to specific problems encountered during development
 - **`/context/survey/`**: 
   - `cutting-edge-solution.md`: Advanced approach using WebGPU, neural networks
   - `production-ready-solution.md`: Stable implementation using proven libraries
 - **`/context/tasks/`**: Development task guides and steps
+- **`/context/api-docs/`**: API documentation for libraries
 
 ### Reference Implementation
-- **`/reference/RgbQuant.js/`**: Complete RgbQuant.js library with demos
+- **`/reference/RgbQuant.js/`**: Complete RgbQuant.js library with demos and examples
 - **`/reference/bilateral-filter/`**: Bilateral filter reference implementation
+- **`/reference/image-quant-minimal.html`**: Working minimal quantization demo
+- **`/reference/image-quant-with-filter.html`**: Enhanced demo with filtering capabilities
+- **`/reference/angular/`**: Full Angular source code for documentation, examples, and API guides
+
+## Current Project State
+
+The project has **basic Angular application structure** implemented in `/embroidery-quant/`:
+- ✅ Angular 20+ with TypeScript and Material Design
+- ✅ Component architecture: ImageUpload, ParameterControl, ImageResults  
+- ✅ Service layer defined: ImageProcessing, BilateralFilter, Quantization, Canvas
+- ✅ Basic UI layout with Material Design components
+- ✅ Successfully builds and ready for feature implementation
+
+## Angular Development Resources
+
+- **`/reference/angular/`**: Complete Angular framework source code
+  - Use this for finding documentation, examples, and API guides
+  - Contains full Angular codebase for reference when implementing features
+  - Helpful for understanding Angular patterns, best practices, and advanced usage
 
 ## Performance Targets
 

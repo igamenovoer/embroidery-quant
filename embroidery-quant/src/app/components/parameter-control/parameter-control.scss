@@ -1,0 +1,17 @@
+.parameters-container {
+  padding: 20px;
+}
+
+.parameter-group {
+  margin-bottom: 16px;
+  
+  label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+  }
+  
+  input[type="range"] {
+    width: 100%;
+  }
+}

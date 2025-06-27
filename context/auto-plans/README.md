@@ -1,0 +1,1 @@
+plans sketched out by AI assitant

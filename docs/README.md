@@ -1,0 +1,1 @@
+manual and technical documentations, in [Material for MkDocs](https://squidfunk.github.io/mkdocs-material/) format 
