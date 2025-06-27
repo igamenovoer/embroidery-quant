@@ -4,3 +4,6 @@
 [submodule "reference/RgbQuant.js"]
 	path = reference/RgbQuant.js
 	url = https://github.com/leeoniya/RgbQuant.js.git
+[submodule "reference/angular"]
+	path = reference/angular
+	url = https://github.com/angular/angular.git
