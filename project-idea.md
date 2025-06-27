@@ -9,6 +9,7 @@ This project develops an web-based image quantization app, which quantizes an im
 - consider ios/android compatibility if not hurting the features, otherwise just make it for PC.
 - provides a download option, to allow the processed image to be downloaded to local disk
 - the whole app will be hosted in github pages
+- prefer to use the cutting-edge latest algorithms
 
 ### Input
 - the user uploads an image
@@ -22,6 +23,13 @@ This project develops an web-based image quantization app, which quantizes an im
 
 ## Algorithms Used
 - image quantization
+- - lib: [RgbQuant.js](https://github.com/leeoniya/RgbQuant.js/)
+- - the [official example](https://leeoniya.github.io/RgbQuant.js/demo/)
 - image dithering given palette
+- - prefer to use RgbQuant.js builtin feature
+- - let the user change algorithm arguments
 - bilateral filtering
+- - example in reference/bilateral-filter
 
+## Libraries
+- prefer to use libraries in survey/production-ready-solution.md
