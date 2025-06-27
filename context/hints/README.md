@@ -1,0 +1,1 @@
+various hints provided to AI assitant as examples or external experience, help him to solve particular problems

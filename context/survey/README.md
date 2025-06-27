@@ -1,0 +1,1 @@
+information gathered from external sources, used as reference to solve problems, or to find libraries or examples, etc.

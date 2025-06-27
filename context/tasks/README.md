@@ -1,0 +1,1 @@
+tasks context that are provided to AI assistant as guides and steps to develop the app.
