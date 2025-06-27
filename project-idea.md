@@ -22,4 +22,6 @@ This project develops an web-based image quantization app, which quantizes an im
 
 ## Algorithms Used
 - image quantization
+- image dithering given palette
+- bilateral filtering
 
