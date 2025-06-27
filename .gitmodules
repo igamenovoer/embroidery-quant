@@ -1,3 +1,6 @@
 [submodule "reference/bilateral-filter"]
 	path = reference/bilateral-filter
 	url = https://github.com/muhammedshahid/bilateral-filter.git
+[submodule "reference/RgbQuant.js"]
+	path = reference/RgbQuant.js
+	url = https://github.com/leeoniya/RgbQuant.js.git
