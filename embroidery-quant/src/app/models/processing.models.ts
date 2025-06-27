@@ -48,6 +48,7 @@ export class QuantizationConfig {
   ditheringIntensity: number = 0.05;
   serpentineMode: boolean = true;
   minHueColors: number = 2;
+  initColors: number = 4096;
   preserveAlpha: boolean = true;
   embroideryOptimized: boolean = true;
 

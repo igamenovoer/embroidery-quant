@@ -1,6 +1,5 @@
 import { Injectable } from '@angular/core';
 import { QuantizationConfig, DitheringAlgorithm, Color } from '../models/processing.models';
-import * as RgbQuant from 'rgbquant';
 
 interface QuantizedResult {
   imageData: ImageData;
@@ -8,14 +7,23 @@ interface QuantizedResult {
   processingTime: number;
 }
 
+declare global {
+  interface Window {
+    RgbQuant: any;
+  }
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class QuantizationService {
-  private rgbQuant: any;
+  constructor() {}
 
-  constructor() {
-    this.rgbQuant = RgbQuant;
+  private getRgbQuant(): any {
+    if (typeof window !== 'undefined' && window.RgbQuant) {
+      return window.RgbQuant;
+    }
+    throw new Error('RgbQuant library not loaded');
   }
 
   async quantizeImage(imageData: ImageData, config: QuantizationConfig): Promise<QuantizedResult> {
@@ -34,28 +42,29 @@ export class QuantizationService {
       const ctx = canvas.getContext('2d')!;
       ctx.putImageData(imageData, 0, 0);
 
-      // Create RgbQuant instance with full options
+      // Create RgbQuant instance with proper options
+      const RgbQuant = this.getRgbQuant();
       const opts = {
         colors: optimizedConfig.colorCount,
         method: optimizedConfig.method,
-        boxSize: [64, 64] as [number, number],
+        boxSize: [64, 64],
         boxPxls: 2,
-        initColors: 4096,
-        minHueCols: optimizedConfig.minHueColors,
-        dithKern: null, // No dithering for quantization step
-        dithDelta: 0,
-        dithSerp: false,
+        initColors: optimizedConfig.initColors || 4096,
+        minHueCols: optimizedConfig.minHueColors || 0,
+        dithKern: this.getDitheringKernel(optimizedConfig.ditheringAlgorithm),
+        dithDelta: optimizedConfig.ditheringIntensity || 0,
+        dithSerp: optimizedConfig.serpentineMode || false,
         useCache: true,
         cacheFreq: 10,
         colorDist: 'euclidean'
       };
 
-      const quantizer = new this.rgbQuant(opts);
+      const quantizer = new RgbQuant(opts);
       
       // Step 1: Sample the image to build color statistics
       quantizer.sample(canvas);
       
-      // Step 2: Build the palette
+      // Step 2: Get the palette
       const palette = quantizer.palette(true); // Get as RGB tuples
       console.log('Generated palette with', palette.length, 'colors');
       
@@ -65,8 +74,8 @@ export class QuantizationService {
       // Convert buffer back to ImageData
       const quantizedImageData = new ImageData(
         new Uint8ClampedArray(quantizedBuffer),
-        imageData.width,
-        imageData.height
+        canvas.width,
+        canvas.height
       );
 
       const processingTime = performance.now() - startTime;
@@ -86,6 +95,7 @@ export class QuantizationService {
   }
 
   async generatePalette(imageData: ImageData, colorCount: number): Promise<Color[]> {
+    const RgbQuant = this.getRgbQuant();
     const opts = {
       colors: colorCount,
       method: 2,
@@ -101,7 +111,7 @@ export class QuantizationService {
       colorDist: 'euclidean'
     };
 
-    const quantizer = new this.rgbQuant(opts);
+    const quantizer = new RgbQuant(opts);
     
     const canvas = document.createElement('canvas');
     canvas.width = imageData.width;
@@ -116,6 +126,7 @@ export class QuantizationService {
   }
 
   async applyCustomPalette(imageData: ImageData, palette: Color[]): Promise<ImageData> {
+    const RgbQuant = this.getRgbQuant();
     const rgbPalette = palette.map(color => [color.r, color.g, color.b]);
     
     const opts = {
@@ -127,7 +138,7 @@ export class QuantizationService {
       dithSerp: false
     };
 
-    const quantizer = new this.rgbQuant(opts);
+    const quantizer = new RgbQuant(opts);
     
     const canvas = document.createElement('canvas');
     canvas.width = imageData.width;
@@ -139,8 +150,8 @@ export class QuantizationService {
     
     return new ImageData(
       new Uint8ClampedArray(resultBuffer),
-      imageData.width,
-      imageData.height
+      canvas.width,
+      canvas.height
     );
   }
 
@@ -169,7 +180,8 @@ export class QuantizationService {
 
     console.log('Applying dithering with algorithm:', algorithm, 'and options:', opts);
 
-    const quantizer = new this.rgbQuant(opts);
+    const RgbQuant = this.getRgbQuant();
+    const quantizer = new RgbQuant(opts);
     
     const canvas = document.createElement('canvas');
     canvas.width = imageData.width;
@@ -184,8 +196,8 @@ export class QuantizationService {
     
     return new ImageData(
       new Uint8ClampedArray(resultBuffer),
-      imageData.width,
-      imageData.height
+      canvas.width,
+      canvas.height
     );
   }
 
@@ -236,24 +248,6 @@ export class QuantizationService {
     return optimized;
   }
 
-  private buildRgbQuantOptions(config: QuantizationConfig): any {
-    return {
-      colors: config.colorCount,
-      method: config.method,
-      boxSize: [64, 64],
-      boxPxls: 2,
-      initColors: 4096,
-      minHueCols: config.minHueColors,
-      dithKern: this.getDitheringKernel(config.ditheringAlgorithm),
-      dithDelta: config.ditheringIntensity,
-      dithSerp: config.serpentineMode,
-      palette: [],
-      reIndex: false,
-      useCache: true,
-      cacheFreq: 10,
-      colorDist: 'euclidean'
-    };
-  }
 
   private getDitheringKernel(algorithm: DitheringAlgorithm): string | null {
     const kernelMap: Record<DitheringAlgorithm, string | null> = {
@@ -291,9 +285,7 @@ export class QuantizationService {
 
   private fallbackPaletteGeneration(imageData: ImageData, colorCount: number): Promise<Color[]> {
     return new Promise((resolve) => {
-      const colors: Color[] = [];
       const data = imageData.data;
-      const pixelCount = data.length / 4;
       
       const colorMap = new Map<string, { color: Color; count: number }>();
       
@@ -344,45 +336,6 @@ export class QuantizationService {
     });
   }
 
-  private fallbackDithering(imageData: ImageData, algorithm: DitheringAlgorithm, palette: Color[]): Promise<ImageData> {
-    if (algorithm === DitheringAlgorithm.None) {
-      return this.fallbackApplyPalette(imageData, palette);
-    }
-    
-    return new Promise((resolve) => {
-      const output = new ImageData(imageData.width, imageData.height);
-      const data = new Float32Array(imageData.data);
-      const outData = output.data;
-      const { width, height } = imageData;
-      
-      for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-          const idx = (y * width + x) * 4;
-          
-          const oldR = data[idx];
-          const oldG = data[idx + 1];
-          const oldB = data[idx + 2];
-          const oldA = data[idx + 3];
-          
-          const currentColor = new Color(oldR, oldG, oldB, oldA);
-          const nearestColor = this.findNearestColor(currentColor, palette);
-          
-          outData[idx] = nearestColor.r;
-          outData[idx + 1] = nearestColor.g;
-          outData[idx + 2] = nearestColor.b;
-          outData[idx + 3] = oldA;
-          
-          const errorR = oldR - nearestColor.r;
-          const errorG = oldG - nearestColor.g;
-          const errorB = oldB - nearestColor.b;
-          
-          this.distributeError(data, width, height, x, y, errorR, errorG, errorB, algorithm);
-        }
-      }
-      
-      resolve(output);
-    });
-  }
 
   private findNearestColor(color: Color, palette: Color[]): Color {
     let minDistance = Infinity;
