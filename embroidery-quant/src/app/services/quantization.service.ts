@@ -162,7 +162,7 @@ export class QuantizationService {
         ditheringAlgorithm: DitheringAlgorithm.FloydSteinberg,
         ditheringIntensity: 0.03,
         serpentineMode: true,
-        minHueCols: 2,
+        minHueColors: 2,
         embroideryOptimized: true
       }),
       new QuantizationConfig({
@@ -171,7 +171,7 @@ export class QuantizationService {
         ditheringAlgorithm: DitheringAlgorithm.Atkinson,
         ditheringIntensity: 0.05,
         serpentineMode: true,
-        minHueCols: 2,
+        minHueColors: 2,
         embroideryOptimized: true
       }),
       new QuantizationConfig({
@@ -180,7 +180,7 @@ export class QuantizationService {
         ditheringAlgorithm: DitheringAlgorithm.FloydSteinberg,
         ditheringIntensity: 0.08,
         serpentineMode: true,
-        minHueCols: 3,
+        minHueColors: 3,
         embroideryOptimized: true
       })
     ];
@@ -190,7 +190,7 @@ export class QuantizationService {
     const optimized = new QuantizationConfig(config);
     
     optimized.method = 2;
-    optimized.minHueCols = Math.max(2, Math.floor(config.colorCount / 8));
+    optimized.minHueColors = Math.max(2, Math.floor(config.colorCount / 8));
     
     if (config.colorCount <= 16) {
       optimized.ditheringIntensity = Math.min(0.05, config.ditheringIntensity);

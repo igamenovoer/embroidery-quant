@@ -202,8 +202,4 @@ export class CanvasService {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   }
 
-  async canvasToImageData(canvas: HTMLCanvasElement): Promise<ImageData> {
-    const ctx = canvas.getContext('2d')!;
-    return ctx.getImageData(0, 0, canvas.width, canvas.height);
-  }
 }
