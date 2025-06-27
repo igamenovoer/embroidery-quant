@@ -1,0 +1,3 @@
+[submodule "reference/bilateral-filter"]
+	path = reference/bilateral-filter
+	url = https://github.com/muhammedshahid/bilateral-filter.git
